@@ -1,0 +1,48 @@
+Scaffold(
+        appBar: AppBar(
+          title: const Text('Memories'),
+          centerTitle: true,
+          backgroundColor: Colors.transparent,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.settings),
+              onPressed: () {
+                // Navigate to settings screen
+                Navigator.push(context, MaterialPageRoute(builder: (context) => SettingsScreen()));
+              },
+            ),
+          ],
+        ),
+        body:
+
+        bottomNavigationBar: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            // Images icon
+            GestureDetector(
+              onTap: (){
+                pageController.jumpToPage(0);
+              },
+              child: Icon(Icons.photo, color: Colors.amber, size: 30,),
+            ),
+
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.amber,
+                borderRadius: BorderRadius.circular(20)
+              ),
+              margin: EdgeInsets.symmetric(vertical: 8),
+              width: 1,
+              height: MediaQuery.sizeOf(context).height*0.07,
+            ),
+
+            // Folders icon
+            GestureDetector(
+              onTap: (){
+                pageController.jumpToPage(1);
+              },
+              child: Icon(Icons.folder, color: Colors.amber, size: 30,),
+            )
+          ],
+        ),
+      ),
