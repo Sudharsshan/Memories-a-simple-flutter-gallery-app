@@ -11,11 +11,13 @@ class PhotosScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-        margin: EdgeInsets.all(2.0),
+        margin: EdgeInsets.all(1.0),
         child: AssetEntityImage(
             photoUrl,
             fit: BoxFit.cover,
             isOriginal: false,
+            thumbnailSize: const ThumbnailSize.square(200), // Preferred value.
+            thumbnailFormat: ThumbnailFormat.jpeg, // Defaults to `jpeg`.
           ),
       );
   }

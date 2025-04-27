@@ -1,48 +1,30 @@
-Scaffold(
-        appBar: AppBar(
-          title: const Text('Memories'),
-          centerTitle: true,
-          backgroundColor: Colors.transparent,
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.settings),
-              onPressed: () {
-                // Navigate to settings screen
-                Navigator.push(context, MaterialPageRoute(builder: (context) => SettingsScreen()));
-              },
-            ),
-          ],
-        ),
-        body:
+Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    // Photos screen button
+                    IconButton(
+                      onPressed: (){
+                        pageController.jumpToPage(0); // Jump to the photos screen
+                      }, 
+                      icon: Icon(Icons.home, size: 30,),
+                      highlightColor: Colors.amber,
+                      ),
 
-        bottomNavigationBar: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            // Images icon
-            GestureDetector(
-              onTap: (){
-                pageController.jumpToPage(0);
-              },
-              child: Icon(Icons.photo, color: Colors.amber, size: 30,),
-            ),
+                    // Albums screen button
+                    IconButton(
+                      onPressed: (){
+                      pageController.jumpToPage(1); // Jump to the albums screen
+                      }, 
+                      icon: Icon(Icons.photo_album, size: 30,),
+                      focusColor: Colors.amber,
+                      ),
 
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.amber,
-                borderRadius: BorderRadius.circular(20)
-              ),
-              margin: EdgeInsets.symmetric(vertical: 8),
-              width: 1,
-              height: MediaQuery.sizeOf(context).height*0.07,
-            ),
-
-            // Folders icon
-            GestureDetector(
-              onTap: (){
-                pageController.jumpToPage(1);
-              },
-              child: Icon(Icons.folder, color: Colors.amber, size: 30,),
-            )
-          ],
-        ),
-      ),
+                    // Settings screen button
+                    IconButton(onPressed: (){
+                      Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                    );
+                    }, icon: const Icon(Icons.settings, size: 30,)),
+                  ]
+                ),
