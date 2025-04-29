@@ -2,10 +2,10 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:memories/models/show_toast.dart';
 import 'package:memories/screens/photos_screen.dart';
 import 'package:memories/screens/folders_screen.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 
 void main() {
@@ -79,15 +79,7 @@ class Memories extends State<MyApp> {
   }
 
   void flutterToastmsg(String message){
-    Fluttertoast.showToast(
-        msg: 'Please allow permission to access media',
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.BOTTOM,
-        timeInSecForIosWeb: 1,
-        backgroundColor: Colors.red,
-        textColor: Colors.white,
-        fontSize: 16.0,
-      );
+    ShowToast(message, true).flutterToastmsg();
   }
 
   @override

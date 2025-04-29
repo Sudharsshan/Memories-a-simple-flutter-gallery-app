@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:memories/screens/big_photo_screen.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:photo_manager_image_provider/photo_manager_image_provider.dart';
 
@@ -21,7 +22,6 @@ class MediaListBuilder extends StatelessWidget{
   
   @override
   Widget build(BuildContext context) {
-    // TODO: implement build
     if (groupedAssets.isEmpty && !isLoadingMore) {
       return const Center(child: Text('No images found'));
     }
@@ -68,7 +68,14 @@ class MediaListBuilder extends StatelessWidget{
                 itemCount: assetsForDate.length,
                 itemBuilder: (context, assetIndex) {
                   final asset = assetsForDate[assetIndex];
-                  return Container(
+                  return GestureDetector(
+                    onTap: (){
+                      // Navigate the user to the photo screen
+                      Navigator.push(context, MaterialPageRoute(
+                        builder: (context) => BigPhotoScreen(asset: asset),
+                      ));
+                    },
+                    child: Container(
                     margin: const EdgeInsets.all(1.0),
                     child: AssetEntityImage(
                       asset,
@@ -77,6 +84,7 @@ class MediaListBuilder extends StatelessWidget{
                       thumbnailSize: const ThumbnailSize.square(140),
                       thumbnailFormat: ThumbnailFormat.png,
                     ),
+                  ),
                   );
                 },
               ),
