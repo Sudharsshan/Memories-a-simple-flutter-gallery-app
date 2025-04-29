@@ -39,9 +39,7 @@ class BigPhotoScreen extends StatelessWidget {
               return Image.memory(snapshot.data!);
             } else {
               return const Text('No image data available');
-            }
-          
-            
+            }  
           },
         ),
       ),
