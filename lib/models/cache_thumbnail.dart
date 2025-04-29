@@ -56,7 +56,7 @@ class _CachedThumbnailState extends State<CachedThumbnail>
               cacheHeight: 200,
               cacheWidth: 200,
             )
-          : const ColoredBox(color: Colors.grey),
+          : const ColoredBox(color: Colors.grey, child: Icon(Icons.dangerous),),
     );
   }
 }

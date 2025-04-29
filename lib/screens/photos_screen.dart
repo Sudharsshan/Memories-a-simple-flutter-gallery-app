@@ -251,6 +251,4 @@ class _PhotosScreenState extends State<PhotosScreen> {
       ),
     );
   }
-
-  
 }
