@@ -2,26 +2,29 @@ import 'dart:io'; // Import for File
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:glossy/glossy.dart';
+import 'package:memories/models/custom_app_bar.dart';
+import 'package:memories/models/media_list_builder.dart';
 import 'package:photo_manager/photo_manager.dart';
-import 'package:photo_manager_image_provider/photo_manager_image_provider.dart';
 import 'package:memories/models/cache_thumbnail.dart'; // Keep your custom cache
 import 'package:path_provider/path_provider.dart'; // For getting cache directory
 import 'package:flutter_cache_manager/flutter_cache_manager.dart'; //alternative
+import 'package:intl/intl.dart'; // For date formatting
 
 class PhotosScreen extends StatefulWidget {
   const PhotosScreen({super.key});
 
   @override
-  State<PhotosScreen> createState() => PhotosScreenState();
+  State<PhotosScreen> createState() => _PhotosScreenState();
 }
 
-class PhotosScreenState extends State<PhotosScreen> {
+class _PhotosScreenState extends State<PhotosScreen> {
   final scrollController = ScrollController();
   final ThumbnailCache thumbnailCache = ThumbnailCache();
   int page = 0;
   int pageCount = 80;
   bool isLoadingMore = false;
-  List<AssetEntity> _allAssets = [];
+  Map<String, List<AssetEntity>> _groupedAssets = {};
+  List<String> _dateKeys = []; // To maintain the order of dates
   // Cache directory for storing thumbnails
   late String _cacheDir;
   bool _isCacheInitialized = false;
@@ -55,17 +58,13 @@ class PhotosScreenState extends State<PhotosScreen> {
     if (kDebugMode) {
       print('Attempting to load initial media.');
     }
-    final PermissionState permissionState =
-        await PhotoManager.requestPermissionExtend();
+    final PermissionState permissionState = await PhotoManager.requestPermissionExtend();
     if (kDebugMode) {
       print('Permission state: $permissionState');
     }
     if (permissionState.isAuth) {
       final assets = await loadMedia(page: 0, pageCount: pageCount);
-      _allAssets.addAll(assets);
-      if (kDebugMode) {
-        print('Loaded ${_allAssets.length} initial assets.');
-      }
+      _groupAssetsByDate(assets);
       _preloadThumbnails(assets);
       if (mounted) {
         setState(() {});
@@ -101,16 +100,38 @@ class PhotosScreenState extends State<PhotosScreen> {
       print('Attempting to load more media - Page: $page, Count: $pageCount');
     }
     final newAssets = await loadMedia(page: page, pageCount: pageCount);
-    _allAssets.addAll(newAssets);
-    if (kDebugMode) {
-      print(
-      'Loaded ${newAssets.length} more assets. Total: ${_allAssets.length}',
-    );
-    }
+    _groupAssetsByDate(newAssets, append: true);
     _preloadThumbnails(newAssets);
     if (mounted) {
       setState(() {
         isLoadingMore = false;
+      });
+    }
+  }
+
+  void _groupAssetsByDate(List<AssetEntity> assets, {bool append = false}) {
+    final newGroups = <String, List<AssetEntity>>{};
+    for (final asset in assets) {
+      final dateTime = asset.createDateTime;
+      final formattedDate = DateFormat('yyyy-MM-dd').format(dateTime);
+      if (!newGroups.containsKey(formattedDate)) {
+        newGroups[formattedDate] = [];
+      }
+      newGroups[formattedDate]!.add(asset);
+    }
+
+    if (!append) {
+      _groupedAssets = newGroups;
+      _dateKeys = _groupedAssets.keys.toList()..sort((a, b) => b.compareTo(a)); // Sort dates in descending order
+    } else {
+      newGroups.forEach((date, assets) {
+        if (_groupedAssets.containsKey(date)) {
+          _groupedAssets[date]!.addAll(assets);
+        } else {
+          _groupedAssets[date] = assets;
+          _dateKeys.add(date);
+          _dateKeys.sort((a, b) => b.compareTo(a)); // Maintain descending order
+        }
       });
     }
   }
@@ -129,8 +150,7 @@ class PhotosScreenState extends State<PhotosScreen> {
           if (kDebugMode) {
             print('Thumbnail not in cache for asset: ${asset.id}');
           }
-          File? cachedFile =
-              (await _cacheManager.getFileFromCache(asset.id)) as File?;
+          File? cachedFile = (await _cacheManager.getFileFromCache(asset.id)) as File?;
 
           if (cachedFile != null) {
             if (kDebugMode) {
@@ -179,10 +199,7 @@ class PhotosScreenState extends State<PhotosScreen> {
     super.dispose();
   }
 
-  Future<List<AssetEntity>> loadMedia({
-    required int page,
-    required int pageCount,
-  }) async {
+  Future<List<AssetEntity>> loadMedia({required int page, required int pageCount}) async {
     if (kDebugMode) {
       print('loadMedia called - Page: $page, Count: $pageCount');
     }
@@ -203,21 +220,20 @@ class PhotosScreenState extends State<PhotosScreen> {
     return assetList;
   }
 
-  // Removed didChangeDependencies for now
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Stack(
         children: [
-          // Images in grid view
+          // Grouped images in a ListView
           Scrollbar(
             controller: scrollController,
             thumbVisibility: true,
+            trackVisibility: false,
             thickness: 8,
             interactive: true,
             radius: const Radius.circular(10),
-            child: mediaGridBuilder(),
+            child: MediaListBuilder(groupedAssets: _groupedAssets, isLoadingMore: isLoadingMore, scrollController: scrollController, dateKeys: _dateKeys),
           ),
           // App bar
           GlossyContainer(
@@ -225,70 +241,16 @@ class PhotosScreenState extends State<PhotosScreen> {
             width: MediaQuery.sizeOf(context).width,
             strengthX: 15,
             strengthY: 10,
-            child: appBar(),
+            border: Border.all(
+              color: Brightness.light == Theme.of(context).brightness ? const Color.fromARGB(100, 255, 255, 255) : const Color.fromARGB(99, 0, 0, 0),
+              width: 1.0,
+            ),
+            child: const CustomAppBar(),
           ),
         ],
       ),
     );
   }
 
-  Widget mediaGridBuilder() {
-    if (_allAssets.isEmpty) {
-      if (isLoadingMore) {
-        return const Center(child: CircularProgressIndicator());
-      }
-      return const Center(child: Text('No images found'));
-    }
-    return GridView.builder(
-      addAutomaticKeepAlives: true,
-      padding: EdgeInsets.fromLTRB(
-        0,
-        MediaQuery.sizeOf(context).height * 0.08,
-        8,
-        0,
-      ),
-      key: const PageStorageKey<String>('gridView'),
-      physics: const BouncingScrollPhysics(),
-      controller: scrollController,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4,
-        childAspectRatio: 1.0,
-      ),
-      itemCount: _allAssets.length,
-      itemBuilder: (context, index) {
-        return Container(
-          margin: const EdgeInsets.all(1.0),
-          child: AssetEntityImage(
-            _allAssets[index],
-            fit: BoxFit.cover,
-            isOriginal: false,
-            thumbnailSize: const ThumbnailSize.square(140), // Preferred value.
-            thumbnailFormat: ThumbnailFormat.png,
-          ),
-        );
-      },
-    );
-  }
-
-  Widget appBar() {
-    return Container(
-      color: const Color.fromARGB(100, 255, 255, 255),
-      padding: const EdgeInsets.fromLTRB(20, 10, 5, 10),
-      child: const Center(
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Photos',
-              style: TextStyle(
-                color: Colors.black,
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  
 }
