@@ -1,205 +1,183 @@
-// List<AssetEntity> Media = [];
-  final scrollController = ScrollController(
-    keepScrollOffset: true,
-  ); // Create a scroll controller
-  int page = 0, pageCount = 80; // Set the page and page count
+import 'package:flutter/material.dart';
+import 'package:glossy/glossy.dart';
+import 'package:photo_manager/photo_manager.dart';
+import 'package:photo_manager_image_provider/photo_manager_image_provider.dart';
+
+class PhotosScreen extends StatefulWidget {
+  const PhotosScreen({super.key});
+
+  @override
+  State<PhotosScreen> createState() => PhotosScreenState();
+}
+
+class PhotosScreenState extends State<PhotosScreen> {
+  final scrollController = ScrollController();
+  int page = 0, pageCount = 80;
+  bool isLoadingMore = false; // Flag to prevent redundant calls
 
   @override
   void initState() {
     super.initState();
-    // request read/write permission on first boot and avoid on subsequent if accepted
-    requestPermission();
+    scrollController.addListener(() {
+      final maxScroll = scrollController.position.maxScrollExtent;
+      final currentScroll = scrollController.position.pixels;
 
-    // Initialise the scroll controller
-    scrollController.addListener(loadMore); // Add listener to scroll controller
-    getFinalCount();
-  }
+      // Check if user is at 70% and not already loading
+      if (maxScroll > 0 && currentScroll >= 0.7 * maxScroll && !isLoadingMore) {
+        isLoadingMore = true; // Block redundant calls
 
-  void getFinalCount() async {
-    pageCount =
-        await PhotoManager.getAssetCount(); // Get the total number of assets
+        setState(() {
+          pageCount += 80; // Load more items
+        });
+
+        // Jump after the GridView rebuilds
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final newMaxScroll = scrollController.position.maxScrollExtent;
+          final previousMaxScroll = maxScroll;
+          final scrollDelta = newMaxScroll - previousMaxScroll;
+
+          // Adjust the scroll position to account for new items
+          scrollController.jumpTo(currentScroll + scrollDelta);
+          isLoadingMore = false;
+        });
+      }
+    });
   }
 
   @override
   void dispose() {
-    scrollController.removeListener(
-      loadMore,
-    ); // Remove listener from scroll controller
-    scrollController.dispose(); // Dispose of the scroll controller
+    scrollController.dispose();
+    PhotoCachingManager().cancelCacheRequest();
     super.dispose();
   }
 
-  void loadMore() {
-    if (scrollController.offset >= scrollController.position.maxScrollExtent) {
-      setState(() {
-        if (kDebugMode) {
-          print('Loading more images and videos...');
-        }
-        // load more images and videos
-        pageCount += 80; // Increase the page count by 80
-        scrollController.jumpTo(
-          scrollController.position.maxScrollExtent,
-        ); // Jump to the end of the list
-        fetchImagesAndVideos();
-      });
-    }
-  }
-
-  void requestPermission() async {
-    // request permission to access all media
-    await Permission.photos.request();
-
-    // check if the permission is denied
-    final mediaPermissionStatus = await Permission.photos.status;
-    if (mediaPermissionStatus.isDenied) {
-      if (mediaPermissionStatus.isDenied) {
-        await openAppSettings();
-      }
-    } else if (mediaPermissionStatus.isPermanentlyDenied) {
-      // Here open app settings for user to manually enable permission in case
-      // where permission was permanently denied
-      await openAppSettings();
-    } else {
-      if (kDebugMode) {
-        print('Read/write permission obtained');
-      }
-    }
-  }
-
-  Future<List<AssetEntity>> fetchImagesAndVideos() async {
-    final List<AssetEntity> entities = await PhotoManager.getAssetListPaged(
+  Future<List<AssetEntity>> loadMedia() async {
+    final assetList = await PhotoManager.getAssetListPaged(
       page: page,
       pageCount: pageCount,
     );
-    return entities;
+    PhotoCachingManager().requestCacheAssets(
+      assets: assetList,
+      option: ThumbnailOption(
+        size: ThumbnailSize.square(150),
+        format: ThumbnailFormat.jpeg,
+      ),
+    );
+    return assetList;
+  }
+
+  @override
+  void didChangeDependencies() async{
+    super.didChangeDependencies();
+    final assets = await loadMedia();
+    // Preload all thumbnails into Flutter's ImageCache
+    for (var asset in assets) {
+      precacheImage(
+        AssetEntityImageProvider(
+          asset,
+          isOriginal: false,
+          thumbnailSize: const ThumbnailSize.square(200),
+        ),
+        context,
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    PageController pageController = PageController(initialPage: 0);
-
-    // Sequence the image paths
-
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: Scaffold(
-        body: SafeArea(
-          child: Builder(
-            builder:
-                (context) => Stack(
-                  // App bar
-                  children: [
-                    PageView(
-                      controller: pageController,
-                      children: [
-                        // Images and videos screen
-                        FutureBuilder(
-                          future: fetchImagesAndVideos(),
-                          builder: (context, snapshot) {
-                            if (snapshot.connectionState ==
-                                ConnectionState.waiting) {
-                              return const Center(
-                                child: CircularProgressIndicator(),
-                              );
-                            } else if (snapshot.hasError) {
-                              return Center(
-                                child: Text('Error: ${snapshot.error}'),
-                              );
-                            } else {
-                              return GridView.builder(
-                                key: const PageStorageKey<String>('gridView'),
-                                physics: const BouncingScrollPhysics(),
-                                addAutomaticKeepAlives: true,
-                                controller: scrollController,
-                                itemCount: snapshot.data!.length,
-                                cacheExtent: 1000,
-                                gridDelegate:
-                                    SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: 4,
-                                    ),
-                                itemBuilder: (context, index) {
-                                  return PhotosScreen(
-                                    photoUrl: snapshot.data![index],
-                                    index: index,
-                                  );
-                                },
-                              );
-                            }
-                          },
-                        ),
-
-                        // Folders screen
-                        const FoldersScreen(),
-                      ],
-                    ),
-
-                    Container(
-                      decoration: BoxDecoration(
-                        backgroundBlendMode: BlendMode.darken,
-                        color: Colors.black.withOpacity(0.5),
-                      ),
-                      height: MediaQuery.of(context).size.height * 0.1,
-                      width: MediaQuery.of(context).size.width,
-                      padding: const EdgeInsets.fromLTRB(20, 10, 5, 10),
-                      child: Center(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Photos',
-                              style: TextStyle(
-                                fontSize: 40,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    // Bottom navigation bar
-                    Align(
-                      alignment: Alignment.bottomCenter,
-                      child: Container(
-                        color: Colors.white,
-                        height: MediaQuery.sizeOf(context).height * 0.08,
-                        width: MediaQuery.sizeOf(context).width,
-                        padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
-                        child: BottomNavigationBar(
-                          currentIndex: page,
-                          selectedItemColor: Colors.amber,
-                          unselectedItemColor: Colors.black,
-                          onTap: (index) {
-                            setState(() {
-                              page = index;
-                              pageController.jumpToPage(
-                                index,
-                              ); // Jump to the selected page
-                            });
-                          },
-                          items: const [
-                            BottomNavigationBarItem(
-                              icon: Icon(Icons.photo, color: Colors.black),
-                              label: 'Photos',
-                              backgroundColor: Colors.white,
-                              activeIcon: Icon(Icons.photo),
-                            ),
-
-                            BottomNavigationBarItem(
-                              icon: Icon(Icons.folder, color: Colors.black),
-                              label: 'Folders',
-                              backgroundColor: Colors.white,
-                              activeIcon: Icon(Icons.photo),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Images in grid view
+          Scrollbar(
+            controller: scrollController,
+            thumbVisibility: true,
+            thickness: 8,
+            interactive: true,
+            radius: const Radius.circular(10),
+            child: mediaGridBuilder(),
           ),
+
+          // App bar
+          GlossyContainer(
+            height: MediaQuery.sizeOf(context).height * 0.08,
+            width: MediaQuery.sizeOf(context).width,
+            strengthX: 15,
+            strengthY: 10,
+            child: appBar(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget mediaGridBuilder() {
+    return FutureBuilder(
+      future: loadMedia(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        } else if (snapshot.hasError) {
+          return const Center(child: Text('Error loading images'));
+        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Center(child: Text('No images found'));
+        } else {
+          final List<AssetEntity> images = snapshot.data!;
+          return GridView.builder(
+            addAutomaticKeepAlives: false,
+            padding: EdgeInsets.fromLTRB(
+              0,
+              MediaQuery.sizeOf(context).height * 0.08,
+              8,
+              0,
+            ),
+            key: const PageStorageKey<String>('gridView'),
+            physics: const BouncingScrollPhysics(),
+            controller: scrollController,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 4,
+              childAspectRatio: 1.0,
+            ),
+            itemCount: images.length,
+            itemBuilder: (context, index) {
+              return Container(
+                margin: const EdgeInsets.all(1.0),
+                child: AssetEntityImage(
+                  images[index],
+                  fit: BoxFit.cover,
+                  isOriginal: false,
+                  thumbnailSize: const ThumbnailSize.square(
+                    200,
+                  ), // Preferred value.
+                  thumbnailFormat: ThumbnailFormat.png,
+                ),
+              );
+            },
+          );
+        }
+      },
+    );
+  }
+
+  Widget appBar() {
+    return Container(
+      color: Color.fromARGB(100, 255, 255, 255),
+      padding: const EdgeInsets.fromLTRB(20, 10, 5, 10),
+      child: Center(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Photos',
+              style: TextStyle(
+                color: Colors.black,
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
+}
