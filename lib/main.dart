@@ -13,7 +13,7 @@ void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
   //Necessary Initialization for package:media_kit
-  MediaKit.ensureInitialized(libmpv: '');
+  MediaKit.ensureInitialized();
   runApp(const MyApp());
 }
 

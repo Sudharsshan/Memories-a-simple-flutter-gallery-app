@@ -9,7 +9,7 @@ android {
     namespace = "com.example.memories"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = "27.2.12479018"
-    
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11

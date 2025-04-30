@@ -39,7 +39,12 @@ class BigPhotoScreenState extends State<BigPhotoScreen>
 
     // Check if the asset is a video
     isVideo = widget.assetData.type == AssetType.video;
-    imageBytesFuture = isVideo? null : widget.assetData.originBytes; // do not load data if it's an image to avoid exception error
+    imageBytesFuture =
+        isVideo
+            ? null
+            : widget
+                .assetData
+                .originBytes; // do not load data if it's an image to avoid exception error
 
     // initiate the animation controller
     animationController = AnimationController(
@@ -183,9 +188,18 @@ class BigPhotoScreenState extends State<BigPhotoScreen>
           IconButton(
             onPressed: () {
               // Implement share functionality here
-              ImageShare(widget.assetData);
+              if (kDebugMode) print('User requested to share');
+              ImageShare().shareImage(widget.assetData);
             },
             icon: const Icon(Icons.share),
+          ),
+
+          // More options button
+          IconButton(
+            onPressed: () {
+              // Add a dropdown menu to show set as wallpaper option
+            },
+            icon: const Icon(Icons.more_horiz_outlined),
           ),
         ],
       ),
@@ -197,7 +211,9 @@ class BigPhotoScreenState extends State<BigPhotoScreen>
           child: Hero(
             tag: widget.assetData.id,
             child:
-                (!isVideo)? ImageViewer(imageDataFuture: imageBytesFuture): VideoViewer(videoFile: widget.assetData,),
+                (!isVideo)
+                    ? ImageViewer(imageDataFuture: imageBytesFuture)
+                    : VideoViewer(videoFile: widget.assetData),
           ),
         ),
       ),
@@ -241,7 +257,7 @@ class BigPhotoScreenState extends State<BigPhotoScreen>
               break;
             case 1:
               // show info about this pic
-              if(kDebugMode) print('User requests file info');
+              if (kDebugMode) print('User requests file info');
               showFileInfoScreen();
               break;
             case 2:

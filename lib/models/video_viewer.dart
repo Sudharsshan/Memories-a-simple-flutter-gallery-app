@@ -2,8 +2,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:photo_manager/photo_manager.dart';
-import 'package:media_kit/media_kit.dart';                      // Provides [Player], [Media], [Playlist] etc.
-import 'package:media_kit_video/media_kit_video.dart';          // Provides [VideoController] & [Video] etc.
+import 'package:media_kit/media_kit.dart'; // Provides [Player], [Media], [Playlist] etc.
+import 'package:media_kit_video/media_kit_video.dart'; // Provides [VideovideoController] & [Video] etc.
 
 class VideoViewer extends StatefulWidget {
   final AssetEntity videoFile;
@@ -16,8 +16,8 @@ class VideoViewer extends StatefulWidget {
 
 class VideoViewerState extends State<VideoViewer> {
   late final Player player = Player();
-  late final controller = VideoController(player);
-  late final File? videoFileData;
+  late final videoController = VideoController(player);
+  late File? videoFileData;
   bool isVideoLoading = true;
   @override
   void initState() {
@@ -28,20 +28,55 @@ class VideoViewerState extends State<VideoViewer> {
     loadvideo();
 
     // open the loaded video file in the player
-    player.open(Media(videoFileData!.path));
   }
 
   @override
-  void dispose(){
+  void dispose() {
     player.dispose();
     super.dispose();
   }
 
-  void loadvideo() async {
-    try{
-      videoFileData = await widget.videoFile.file;
-    } catch(e){
-      print('Cannot find the video file: $e');
+void loadvideo() async {
+    File? file;
+    try {
+      file = await widget.videoFile.file; // Use .file instead of .originFile
+      if (file == null) {
+        print('Error: Could not get the video file.');
+        setState(() {
+          isVideoLoading = false;
+        });
+        return;
+      }
+      videoFileData = file;
+      print('Loaded file data: ${videoFileData?.path}'); // Log the path
+    } catch (e) {
+      print('Cannot access the video file: $e');
+      setState(() {
+        isVideoLoading = false;
+      });
+      return;
+    }
+
+    try {
+      final playable = videoFileData!.path;
+      player.open(Media(playable), play: true);
+      setState(() {
+        isVideoLoading = false;
+      });
+      print('Loaded video successfully from path: ${videoFileData!.path}');
+
+      // trying to play after a short delay
+      Future.delayed(const Duration(milliseconds: 500), (){
+        if(player.state.playing){
+          player.play();
+          print('Attempting to play video after a short delay');
+        }
+      });
+    } catch (e) {
+      print('Unable to open media: $e');
+      setState(() {
+        isVideoLoading = false;
+      });
     }
   }
 
@@ -50,12 +85,17 @@ class VideoViewerState extends State<VideoViewer> {
     return isVideoLoading
         ? Center(child: CircularProgressIndicator.adaptive())
         : Container(
-          color: Colors.amber,
+          padding: EdgeInsets.symmetric(vertical: 10),
+          height: MediaQuery.sizeOf(context).height,
+          width: MediaQuery.sizeOf(context).width,
           child: GestureDetector(
-            onTap:
-                () {},
+            onTap: () {
+              videoController.player.playOrPause();
+            },
             child:
-                isVideoLoading? const Center(child: CircularProgressIndicator.adaptive(),): Video(controller: controller),
+                isVideoLoading
+                    ? const Center(child: CircularProgressIndicator.adaptive())
+                    : Video(controller: videoController),
           ),
         );
   }

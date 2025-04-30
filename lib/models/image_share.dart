@@ -5,9 +5,6 @@ import 'package:share_plus/share_plus.dart'; // Import for sharing functionality
 
 class ImageShare {
 
-  final AssetEntity asset;
-  ImageShare(this.asset);
-
   Future<void> shareImage(AssetEntity asset) async {
     if (kDebugMode) {
       print('Sharing image: ${asset.title}');
