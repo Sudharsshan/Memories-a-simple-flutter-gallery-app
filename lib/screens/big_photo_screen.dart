@@ -1,4 +1,5 @@
-import 'dart:typed_data';
+import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -6,7 +7,6 @@ import 'package:memories/models/image_share.dart';
 import 'package:memories/models/image_viewer.dart';
 import 'package:memories/models/show_toast.dart';
 import 'package:photo_manager/photo_manager.dart';
-import 'package:share_plus/share_plus.dart'; // Import for sharing functionality
 
 class BigPhotoScreen extends StatefulWidget {
   final AssetEntity assetData;
@@ -18,14 +18,144 @@ class BigPhotoScreen extends StatefulWidget {
   BigPhotoScreenState createState() => BigPhotoScreenState();
 }
 
-class BigPhotoScreenState extends State<BigPhotoScreen> {
+class BigPhotoScreenState extends State<BigPhotoScreen>
+    with SingleTickerProviderStateMixin {
   bool imageLiked = false;
   late Future<Uint8List?>? imageBytesFuture;
+
+  late AnimationController animationController;
+  late Animation<double> scaleAnimation;
+  double dragDistance = 0.0;
+  final double closeDownThreshold = 100.0,
+      infoUpThreshold = 60.0; // Change this value after testing
+  bool isDraggingUp = false, isDraggingDown = false;
 
   @override
   void initState() {
     super.initState();
     imageBytesFuture = widget.assetData.originBytes;
+
+    animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+
+    scaleAnimation = Tween<double>(begin: 1.0, end: 0.8).animate(
+      CurvedAnimation(parent: animationController, curve: Curves.easeOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    animationController.dispose();
+    super.dispose();
+  }
+
+  void handleVerticalDragUpdate(DragUpdateDetails details) {
+    setState(() {
+      dragDistance -=
+          details.primaryDelta!; // since it's dragging down it's -ve
+
+      if (dragDistance > 0) {
+        // Dragging upwards: show info screen
+        isDraggingDown = false;
+        isDraggingUp = true;
+
+        animationController.value = (dragDistance.abs() / infoUpThreshold)
+            .clamp(0.0, 1.0);
+      } else if (dragDistance < 0) {
+        // Dragging down: exit the big photo mode
+        isDraggingDown = true;
+        isDraggingUp = false;
+        animationController.value = (dragDistance.abs() / closeDownThreshold)
+            .clamp(0.0, 1.0);
+      } else {
+        isDraggingDown = false;
+        isDraggingUp = false;
+        animationController.value = 0.0;
+      }
+    });
+  }
+
+  void handleVerticalDragEnd(DragEndDetails details) async {
+    if (isDraggingDown &&
+        (dragDistance.abs() > closeDownThreshold ||
+            details.velocity.pixelsPerSecond.dy > 300)) {
+      // Dragged down: exit the big photo mode
+      Navigator.of(context).pop();
+    } else if (isDraggingUp &&
+        (dragDistance.abs() > infoUpThreshold ||
+            details.velocity.pixelsPerSecond.dy < -300)) {
+      // Dragged up: show file info
+      showFileInfoScreen();
+      animationController.reverse();
+    } else {
+      // not enough drag, revert animation
+      animationController.reverse();
+    }
+    setState(() {
+      dragDistance = 0.0;
+      isDraggingDown = false;
+      isDraggingUp = false;
+    });
+  }
+
+  void showFileInfoScreen() async {
+    final DateTime date = widget.assetData.createDateTime;
+    final String? mimeType = widget.assetData.mimeType;
+    final Size resolution = widget.assetData.size;
+    final assetFile = await widget.assetData.file;
+    final byteSize = formatFileSize((assetFile?.length() == null)? 0 : assetFile!.lengthSync());
+
+    if (mounted) {
+      showModalBottomSheet(
+        useSafeArea: true,
+        enableDrag: true,
+        context: context,
+        builder: (BuildContext context) {
+          return Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                Text(
+                  'File Information',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const Divider(),
+                const SizedBox(height: 10),
+                Text('Date created: ${date.toLocal()}'),
+                if (mimeType != null) Text('File Type: $mimeType'),
+                Text('File resolution: ${resolution.height} x ${resolution.width}'),
+                Text('File Size: $byteSize'),
+                Text('Asset ID: ${widget.assetData.id}'),
+
+                const SizedBox(height: 8),
+                ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text('Close'),
+                  ),
+              ],
+            ),
+          );
+        },
+      );
+    }
+  }
+
+  String formatFileSize(int bytes){
+    if(bytes < 1024){
+      return '$bytes B';
+    }
+    else if (bytes < 1024 * 1024){
+      return '${(bytes/1024).toStringAsFixed(2)} KB';
+    } 
+    else if(bytes < pow(1024, 3)){
+      return '${(bytes / pow(1024, 2)).toStringAsFixed(2)} MB';
+    } else {
+      return '${(bytes/ pow(1024, 3)).toStringAsFixed(2)} GB';
+    }
   }
 
   @override
@@ -50,13 +180,14 @@ class BigPhotoScreenState extends State<BigPhotoScreen> {
         ],
       ),
       body: GestureDetector(
-        onVerticalDragDown: (details) {
-          // Handle vertical drag down to close the image viewer
-          Navigator.of(context).pop();
-        },
-        child: Hero(
-          tag: widget.assetData.id,
-          child: ImageViewer(imageDataFuture: imageBytesFuture),
+        onVerticalDragUpdate: handleVerticalDragUpdate,
+        onVerticalDragEnd: handleVerticalDragEnd,
+        child: ScaleTransition(
+          scale: scaleAnimation,
+          child: Hero(
+            tag: widget.assetData.id,
+            child: ImageViewer(imageDataFuture: imageBytesFuture),
+          ),
         ),
       ),
       bottomNavigationBar: BottomNavigationBar(
