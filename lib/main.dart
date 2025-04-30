@@ -98,6 +98,7 @@ class Memories extends State<MyApp> {
           brightness: Brightness.dark,
           primary: themeColor,
           secondary: themeColor,
+          // ignore: deprecated_member_use
           background: const Color.fromARGB(255, 0, 0, 0),
           surface: const Color.fromARGB(255, 0, 0, 0),
         ),

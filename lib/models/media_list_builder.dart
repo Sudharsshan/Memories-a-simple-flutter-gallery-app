@@ -4,13 +4,11 @@ import 'package:memories/screens/big_photo_screen.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:photo_manager_image_provider/photo_manager_image_provider.dart';
 
-class MediaListBuilder extends StatelessWidget{
+class MediaListBuilder extends StatelessWidget {
   final Map<String, List<AssetEntity>> groupedAssets;
   final bool isLoadingMore;
   final ScrollController scrollController;
   final List<String> dateKeys;
-
-  
 
   const MediaListBuilder({
     super.key,
@@ -19,7 +17,7 @@ class MediaListBuilder extends StatelessWidget{
     required this.scrollController,
     required this.dateKeys,
   });
-  
+
   @override
   Widget build(BuildContext context) {
     if (groupedAssets.isEmpty && !isLoadingMore) {
@@ -32,7 +30,9 @@ class MediaListBuilder extends StatelessWidget{
     return ListView.builder(
       controller: scrollController,
       physics: const BouncingScrollPhysics(),
-      itemCount: dateKeys.length + (isLoadingMore ? 1 : 0), // Add 1 for the loading indicator
+      itemCount:
+          dateKeys.length +
+          (isLoadingMore ? 1 : 0), // Add 1 for the loading indicator
       itemBuilder: (context, index) {
         if (index < dateKeys.length) {
           final date = dateKeys[index];
@@ -42,11 +42,15 @@ class MediaListBuilder extends StatelessWidget{
             children: [
               // Add padding at the top for the first item to avoid overlapping with the app bar
               if (index == 0)
-                SizedBox(height: MediaQuery.of(context).padding.top + MediaQuery.sizeOf(context).height * 0.08),
-              
+                SizedBox(
+                  height:
+                      MediaQuery.of(context).padding.top +
+                      MediaQuery.sizeOf(context).height * 0.08,
+                ),
+
               // Date header
               Padding(
-                padding: EdgeInsets.all( 8.0),
+                padding: EdgeInsets.all(8.0),
                 child: Text(
                   _formatDate(date), // Format the date for display
                   style: const TextStyle(
@@ -58,9 +62,14 @@ class MediaListBuilder extends StatelessWidget{
 
               // GridView for assets
               GridView.builder(
-                padding: const EdgeInsets.only(left: 8.0, right: 8.0, bottom: 8.0),
+                padding: const EdgeInsets.only(
+                  left: 8.0,
+                  right: 8.0,
+                  bottom: 8.0,
+                ),
                 shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(), // To disable GridView's scrolling
+                physics:
+                    const NeverScrollableScrollPhysics(), // To disable GridView's scrolling
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 4,
                   childAspectRatio: 1.0,
@@ -69,22 +78,41 @@ class MediaListBuilder extends StatelessWidget{
                 itemBuilder: (context, assetIndex) {
                   final asset = assetsForDate[assetIndex];
                   return GestureDetector(
-                    onTap: (){
+                    onTap: () {
                       // Navigate the user to the photo screen
-                      Navigator.push(context, MaterialPageRoute(
-                        builder: (context) => BigPhotoScreen(asset: asset),
-                      ));
+                      Navigator.push(
+                        context,
+                        PageRouteBuilder(
+                          pageBuilder:
+                              (context, animation, secondaryAnimation) =>
+                                  BigPhotoScreen(assetData: asset),
+                          transitionsBuilder: (
+                            context,
+                            animation,
+                            secondaryAnimation,
+                            child,
+                          ) {
+                            return FadeTransition(
+                              opacity: animation,
+                              child: child,
+                            );
+                          },
+                        ),
+                      );
                     },
-                    child: Container(
-                    margin: const EdgeInsets.all(1.0),
-                    child: AssetEntityImage(
-                      asset,
-                      fit: BoxFit.cover,
-                      isOriginal: false,
-                      thumbnailSize: const ThumbnailSize.square(140),
-                      thumbnailFormat: ThumbnailFormat.png,
+                    child: Hero(
+                      tag: asset.id,
+                      child: Container(
+                        margin: const EdgeInsets.all(1.0),
+                        child: AssetEntityImage(
+                          asset,
+                          fit: BoxFit.cover,
+                          isOriginal: false,
+                          thumbnailSize: const ThumbnailSize.square(140),
+                          thumbnailFormat: ThumbnailFormat.png,
+                        ),
+                      ),
                     ),
-                  ),
                   );
                 },
               ),
@@ -107,9 +135,13 @@ class MediaListBuilder extends StatelessWidget{
     final now = DateTime.now();
     final yesterday = now.subtract(const Duration(days: 1));
 
-    if (parsedDate.year == now.year && parsedDate.month == now.month && parsedDate.day == now.day) {
+    if (parsedDate.year == now.year &&
+        parsedDate.month == now.month &&
+        parsedDate.day == now.day) {
       return 'Today';
-    } else if (parsedDate.year == yesterday.year && parsedDate.month == yesterday.month && parsedDate.day == yesterday.day) {
+    } else if (parsedDate.year == yesterday.year &&
+        parsedDate.month == yesterday.month &&
+        parsedDate.day == yesterday.day) {
       return 'Yesterday';
     } else {
       return DateFormat('MMMM d, y').format(parsedDate);
