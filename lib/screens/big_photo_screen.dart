@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:memories/models/image_share.dart';
 import 'package:memories/models/image_viewer.dart';
 import 'package:memories/models/show_toast.dart';
+import 'package:memories/models/video_viewer.dart';
 import 'package:photo_manager/photo_manager.dart';
 
 class BigPhotoScreen extends StatefulWidget {
@@ -29,17 +30,24 @@ class BigPhotoScreenState extends State<BigPhotoScreen>
   final double closeDownThreshold = 100.0,
       infoUpThreshold = 60.0; // Change this value after testing
   bool isDraggingUp = false, isDraggingDown = false;
+  bool isVideo = false, isVideoLoading = true;
+  late File videoFileData;
 
   @override
   void initState() {
     super.initState();
-    imageBytesFuture = widget.assetData.originBytes;
 
+    // Check if the asset is a video
+    isVideo = widget.assetData.type == AssetType.video;
+    imageBytesFuture = isVideo? null : widget.assetData.originBytes; // do not load data if it's an image to avoid exception error
+
+    // initiate the animation controller
     animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
 
+    // initiate the scale animation controller
     scaleAnimation = Tween<double>(begin: 1.0, end: 0.8).animate(
       CurvedAnimation(parent: animationController, curve: Curves.easeOut),
     );
@@ -105,7 +113,9 @@ class BigPhotoScreenState extends State<BigPhotoScreen>
     final String? mimeType = widget.assetData.mimeType;
     final Size resolution = widget.assetData.size;
     final assetFile = await widget.assetData.file;
-    final byteSize = formatFileSize((assetFile?.length() == null)? 0 : assetFile!.lengthSync());
+    final byteSize = formatFileSize(
+      (assetFile?.length() == null) ? 0 : assetFile!.lengthSync(),
+    );
 
     if (mounted) {
       showModalBottomSheet(
@@ -127,15 +137,17 @@ class BigPhotoScreenState extends State<BigPhotoScreen>
                 const SizedBox(height: 10),
                 Text('Date created: ${date.toLocal()}'),
                 if (mimeType != null) Text('File Type: $mimeType'),
-                Text('File resolution: ${resolution.height} x ${resolution.width}'),
+                Text(
+                  'File resolution: ${resolution.height} x ${resolution.width}',
+                ),
                 Text('File Size: $byteSize'),
                 Text('Asset ID: ${widget.assetData.id}'),
 
                 const SizedBox(height: 8),
                 ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: Text('Close'),
-                  ),
+                  onPressed: () => Navigator.pop(context),
+                  child: Text('Close'),
+                ),
               ],
             ),
           );
@@ -144,17 +156,15 @@ class BigPhotoScreenState extends State<BigPhotoScreen>
     }
   }
 
-  String formatFileSize(int bytes){
-    if(bytes < 1024){
+  String formatFileSize(int bytes) {
+    if (bytes < 1024) {
       return '$bytes B';
-    }
-    else if (bytes < 1024 * 1024){
-      return '${(bytes/1024).toStringAsFixed(2)} KB';
-    } 
-    else if(bytes < pow(1024, 3)){
+    } else if (bytes < 1024 * 1024) {
+      return '${(bytes / 1024).toStringAsFixed(2)} KB';
+    } else if (bytes < pow(1024, 3)) {
       return '${(bytes / pow(1024, 2)).toStringAsFixed(2)} MB';
     } else {
-      return '${(bytes/ pow(1024, 3)).toStringAsFixed(2)} GB';
+      return '${(bytes / pow(1024, 3)).toStringAsFixed(2)} GB';
     }
   }
 
@@ -186,7 +196,8 @@ class BigPhotoScreenState extends State<BigPhotoScreen>
           scale: scaleAnimation,
           child: Hero(
             tag: widget.assetData.id,
-            child: ImageViewer(imageDataFuture: imageBytesFuture),
+            child:
+                (!isVideo)? ImageViewer(imageDataFuture: imageBytesFuture): VideoViewer(videoFile: widget.assetData,),
           ),
         ),
       ),
@@ -230,6 +241,8 @@ class BigPhotoScreenState extends State<BigPhotoScreen>
               break;
             case 1:
               // show info about this pic
+              if(kDebugMode) print('User requests file info');
+              showFileInfoScreen();
               break;
             case 2:
               // delete this pic

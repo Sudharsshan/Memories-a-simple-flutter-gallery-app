@@ -7,8 +7,13 @@ import 'package:memories/screens/photos_screen.dart';
 import 'package:memories/screens/folders_screen.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:media_kit/media_kit.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  //Necessary Initialization for package:media_kit
+  MediaKit.ensureInitialized(libmpv: '');
   runApp(const MyApp());
 }
 
