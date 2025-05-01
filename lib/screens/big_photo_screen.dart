@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:memories/models/image_share.dart';
 import 'package:memories/models/image_viewer.dart';
+import 'package:memories/models/set_wallpaper.dart';
 import 'package:memories/models/show_toast.dart';
 import 'package:memories/models/video_viewer.dart';
 import 'package:photo_manager/photo_manager.dart';
@@ -330,8 +331,16 @@ class BigPhotoScreenState extends State<BigPhotoScreen>
     );
   }
 
-  void choiceAction(String menuItem){
-    if(kDebugMode) print('User selected : $menuItem');
-    // Handle the necessary actions
+  void choiceAction(String menuItem) async {
+    if (kDebugMode) print('User selected : $menuItem');
+    // call the set wallpaper service
+    try {
+      final file = await widget.assetData.originFile;
+      final String? filePath = file?.path;
+      if (kDebugMode) print('File path: $filePath');
+      SetWallpaper(imagePath: filePath!).setWallpaper();
+    } catch (e) {
+      if(kDebugMode) print('Error setting as wallpaper: $e');
+    }
   }
 }

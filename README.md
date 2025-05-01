@@ -18,7 +18,7 @@ while working over developing flutter apps for android, you may get struck with 
 - on slide up, show more details of the picture **WORKS**
 - on slide right, load and show previous picture. If not found, just bounce
 - on slide left, load and show next picture. If not found, just bounce
-- set as wallpaper option (AT TOP)
+- set as wallpaper option (AT TOP) **WORKS**
 - Favourite button **WORKS**
 
 ## Album screen
