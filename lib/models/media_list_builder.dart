@@ -9,6 +9,7 @@ class MediaListBuilder extends StatelessWidget {
   final bool isLoadingMore;
   final ScrollController scrollController;
   final List<String> dateKeys;
+  final VoidCallback onDeletion;
 
   const MediaListBuilder({
     super.key,
@@ -16,6 +17,7 @@ class MediaListBuilder extends StatelessWidget {
     required this.isLoadingMore,
     required this.scrollController,
     required this.dateKeys,
+    required this.onDeletion,
   });
 
   @override
@@ -85,7 +87,7 @@ class MediaListBuilder extends StatelessWidget {
                         PageRouteBuilder(
                           pageBuilder:
                               (context, animation, secondaryAnimation) =>
-                                  BigPhotoScreen(assetData: asset),
+                                  BigPhotoScreen(assetEntity: asset, onDeletion: onDeletion,),
                           transitionsBuilder: (
                             context,
                             animation,
@@ -147,4 +149,6 @@ class MediaListBuilder extends StatelessWidget {
       return DateFormat('MMMM d, y').format(parsedDate);
     }
   }
+
+
 }

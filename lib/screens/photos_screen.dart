@@ -31,8 +31,8 @@ class _PhotosScreenState extends State<PhotosScreen> {
   final CacheManager _cacheManager = CacheManager(
     Config(
       'customCacheKey',
-      maxNrOfCacheObjects: 200,
-      stalePeriod: const Duration(days: 7),
+      maxNrOfCacheObjects: 400,
+      stalePeriod: const Duration(days: 15),
     ),
   );
 
@@ -58,7 +58,8 @@ class _PhotosScreenState extends State<PhotosScreen> {
     if (kDebugMode) {
       print('Attempting to load initial media.');
     }
-    final PermissionState permissionState = await PhotoManager.requestPermissionExtend();
+    final PermissionState permissionState =
+        await PhotoManager.requestPermissionExtend();
     if (kDebugMode) {
       print('Permission state: $permissionState');
     }
@@ -122,7 +123,9 @@ class _PhotosScreenState extends State<PhotosScreen> {
 
     if (!append) {
       _groupedAssets = newGroups;
-      _dateKeys = _groupedAssets.keys.toList()..sort((a, b) => b.compareTo(a)); // Sort dates in descending order
+      _dateKeys =
+          _groupedAssets.keys.toList()
+            ..sort((a, b) => b.compareTo(a)); // Sort dates in descending order
     } else {
       newGroups.forEach((date, assets) {
         if (_groupedAssets.containsKey(date)) {
@@ -150,7 +153,10 @@ class _PhotosScreenState extends State<PhotosScreen> {
           if (kDebugMode) {
             print('Thumbnail not in cache for asset: ${asset.id}');
           }
-          File? cachedFile = (await _cacheManager.getFileFromCache(asset.id)) as File?;
+          //  Change:  Handle the FileInfo? return type
+          FileInfo? fileInfo = await _cacheManager.getFileFromCache(asset.id);
+          File? cachedFile =
+              fileInfo?.file; // Extract the File if FileInfo is not null
 
           if (cachedFile != null) {
             if (kDebugMode) {
@@ -175,7 +181,9 @@ class _PhotosScreenState extends State<PhotosScreen> {
               }
             } else {
               if (kDebugMode) {
-                print('Failed to generate thumbnail data for asset: ${asset.id}');
+                print(
+                  'Failed to generate thumbnail data for asset: ${asset.id}',
+                );
               }
             }
           }
@@ -199,7 +207,10 @@ class _PhotosScreenState extends State<PhotosScreen> {
     super.dispose();
   }
 
-  Future<List<AssetEntity>> loadMedia({required int page, required int pageCount}) async {
+  Future<List<AssetEntity>> loadMedia({
+    required int page,
+    required int pageCount,
+  }) async {
     if (kDebugMode) {
       print('loadMedia called - Page: $page, Count: $pageCount');
     }
@@ -220,6 +231,40 @@ class _PhotosScreenState extends State<PhotosScreen> {
     return assetList;
   }
 
+  Future<void> refreshMedia() async {
+    if (kDebugMode) {
+      print('Refreshing media in PhotosScreen');
+    }
+
+    double previousScrollPosition = 0.0;
+    if (scrollController.hasClients) {
+      previousScrollPosition = scrollController.position.pixels;
+    }
+
+    // Instead of clearing, just reload the media and update
+    //page = 0;
+    _groupedAssets.clear();
+    _dateKeys.clear();
+    isLoadingMore = false;
+    final assets = await loadMedia(page: page, pageCount: pageCount);
+    _groupAssetsByDate(assets, append: true);
+    _preloadThumbnails(assets);
+
+    if (mounted) {
+      setState(() {
+        //update UI
+      });
+       // Restore scroll position after the build
+      if (scrollController.hasClients) {
+        scrollController.animateTo(
+          previousScrollPosition,
+          duration: const Duration(milliseconds: 100), // a very short duration
+          curve: Curves.linear,
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -233,7 +278,13 @@ class _PhotosScreenState extends State<PhotosScreen> {
             thickness: 8,
             interactive: true,
             radius: const Radius.circular(10),
-            child: MediaListBuilder(groupedAssets: _groupedAssets, isLoadingMore: isLoadingMore, scrollController: scrollController, dateKeys: _dateKeys),
+            child: MediaListBuilder(
+              groupedAssets: _groupedAssets,
+              isLoadingMore: isLoadingMore,
+              scrollController: scrollController,
+              dateKeys: _dateKeys,
+              onDeletion: refreshMedia,
+            ),
           ),
           // App bar
           GlossyContainer(
@@ -242,7 +293,10 @@ class _PhotosScreenState extends State<PhotosScreen> {
             strengthX: 15,
             strengthY: 10,
             border: Border.all(
-              color: Brightness.light == Theme.of(context).brightness ? const Color.fromARGB(100, 255, 255, 255) : const Color.fromARGB(99, 0, 0, 0),
+              color:
+                  Brightness.light == Theme.of(context).brightness
+                      ? const Color.fromARGB(100, 255, 255, 255)
+                      : const Color.fromARGB(99, 0, 0, 0),
               width: 1.0,
             ),
             child: const CustomAppBar(),

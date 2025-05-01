@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:memories/models/image_share.dart';
 import 'package:memories/models/image_viewer.dart';
 import 'package:memories/models/set_wallpaper.dart';
@@ -11,9 +12,13 @@ import 'package:memories/models/video_viewer.dart';
 import 'package:photo_manager/photo_manager.dart';
 
 class BigPhotoScreen extends StatefulWidget {
-  final AssetEntity assetData;
-
-  const BigPhotoScreen({super.key, required this.assetData});
+  final AssetEntity assetEntity;
+  final VoidCallback onDeletion;
+  const BigPhotoScreen({
+    super.key,
+    required this.assetEntity,
+    required this.onDeletion,
+  });
 
   @override
   // ignore: no_logic_in_create_state
@@ -42,12 +47,12 @@ class BigPhotoScreenState extends State<BigPhotoScreen>
     super.initState();
 
     // Check if the asset is a video
-    isVideo = widget.assetData.type == AssetType.video;
+    isVideo = widget.assetEntity.type == AssetType.video;
     imageBytesFuture =
         isVideo
             ? null
             : widget
-                .assetData
+                .assetEntity
                 .originBytes; // do not load data if it's an image to avoid exception error
 
     // initiate the animation controller
@@ -118,10 +123,10 @@ class BigPhotoScreenState extends State<BigPhotoScreen>
   }
 
   void showFileInfoScreen() async {
-    final DateTime date = widget.assetData.createDateTime;
-    final String? mimeType = widget.assetData.mimeType;
-    final Size resolution = widget.assetData.size;
-    final assetFile = await widget.assetData.file;
+    final DateTime date = widget.assetEntity.createDateTime;
+    final String? mimeType = widget.assetEntity.mimeType;
+    final Size resolution = widget.assetEntity.size;
+    final assetFile = await widget.assetEntity.file;
     final byteSize = formatFileSize(
       (assetFile?.length() == null) ? 0 : assetFile!.lengthSync(),
     );
@@ -150,7 +155,7 @@ class BigPhotoScreenState extends State<BigPhotoScreen>
                   'File resolution: ${resolution.height} x ${resolution.width}',
                 ),
                 Text('File Size: $byteSize'),
-                Text('Asset ID: ${widget.assetData.id}'),
+                Text('Asset ID: ${widget.assetEntity.id}'),
 
                 const SizedBox(height: 8),
                 ElevatedButton(
@@ -231,14 +236,14 @@ class BigPhotoScreenState extends State<BigPhotoScreen>
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text(widget.assetData.id),
+        title: Text(widget.assetEntity.id),
         actions: [
           // Share button
           IconButton(
             onPressed: () {
               // Implement share functionality here
               if (kDebugMode) print('User requested to share');
-              ImageShare().shareImage(widget.assetData);
+              ImageShare().shareImage(widget.assetEntity);
             },
             icon: const Icon(Icons.share),
           ),
@@ -265,11 +270,11 @@ class BigPhotoScreenState extends State<BigPhotoScreen>
         child: ScaleTransition(
           scale: scaleAnimation,
           child: Hero(
-            tag: widget.assetData.id,
+            tag: widget.assetEntity.id,
             child:
                 (!isVideo)
                     ? ImageViewer(imageDataFuture: imageBytesFuture)
-                    : VideoViewer(videoFile: widget.assetData),
+                    : VideoViewer(videoFile: widget.assetEntity),
           ),
         ),
       ),
@@ -306,7 +311,7 @@ class BigPhotoScreenState extends State<BigPhotoScreen>
                 imageLiked = !imageLiked;
                 if (kDebugMode) {
                   print(
-                    'Image \'${widget.assetData.id}\' liked status: $imageLiked',
+                    'Image \'${widget.assetEntity.id}\' liked status: $imageLiked',
                   );
                 }
               });
@@ -318,6 +323,9 @@ class BigPhotoScreenState extends State<BigPhotoScreen>
               break;
             case 2:
               // delete this pic
+              if (kDebugMode)
+                print('User requests to delete file: ${widget.assetEntity.id}');
+              deleteFile(widget.assetEntity);
               break;
             case 3:
               // edit this pic
@@ -335,12 +343,34 @@ class BigPhotoScreenState extends State<BigPhotoScreen>
     if (kDebugMode) print('User selected : $menuItem');
     // call the set wallpaper service
     try {
-      final file = await widget.assetData.originFile;
+      final file = await widget.assetEntity.originFile;
       final String? filePath = file?.path;
       if (kDebugMode) print('File path: $filePath');
       SetWallpaper(imagePath: filePath!).setWallpaper();
     } catch (e) {
-      if(kDebugMode) print('Error setting as wallpaper: $e');
+      if (kDebugMode) print('Error setting as wallpaper: $e');
+    }
+  }
+
+  void deleteFile(AssetEntity fileToDelete) async {
+    try {
+      final List<String> result = await PhotoManager.editor.deleteWithIds([
+        fileToDelete.id,
+      ]);
+      final bool deleted = result[0] == fileToDelete.id;
+      if (deleted) {
+        if (kDebugMode) print('Deleted file successfully using PhotoManager');
+        // Optionally, update UI to reflect the deletion
+        widget.onDeletion();
+        // ignore: use_build_context_synchronously
+        Navigator.pop(context);
+      } else {
+        if (kDebugMode) print('Failed to delete file using PhotoManager');
+        ShowToast('Failed to delete file', true).flutterToastmsg();
+      }
+    } catch (e) {
+      if (kDebugMode) print('Error deleting file: $e');
+      ShowToast('Error deleting file', true).flutterToastmsg();
     }
   }
 }
