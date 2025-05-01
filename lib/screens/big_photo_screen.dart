@@ -32,6 +32,9 @@ class BigPhotoScreenState extends State<BigPhotoScreen>
   bool isDraggingUp = false, isDraggingDown = false;
   bool isVideo = false, isVideoLoading = true;
   late File videoFileData;
+  OverlayEntry? overlayEntry;
+  final LayerLink layerLink = LayerLink();
+  bool isMenuOpen = false;
 
   @override
   void initState() {
@@ -173,6 +176,51 @@ class BigPhotoScreenState extends State<BigPhotoScreen>
     }
   }
 
+  void showCustommenu() {
+    overlayEntry = createOverlayEntry();
+    Overlay.of(context).insert(overlayEntry!);
+  }
+
+  void hideCustomMenu() {
+    overlayEntry?.remove();
+    overlayEntry = null;
+  }
+
+  OverlayEntry createOverlayEntry() {
+    return OverlayEntry(
+      builder:
+          (context) => Positioned(
+            width: 150.0,
+            child: CompositedTransformFollower(
+              link: layerLink,
+              showWhenUnlinked: false,
+              offset: const Offset(-80.0, 40.0),
+              child: Material(
+                elevation: 4.0,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    InkWell(
+                      onTap: () {
+                        hideCustomMenu();
+                        ShowToast(
+                          'Setting as wallpaper',
+                          false,
+                        ).flutterToastmsg();
+                      },
+                      child: const Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Text('Set as wallpaper'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     const Color iconColor = Color.fromRGBO(255, 64, 129, 1);
@@ -195,11 +243,18 @@ class BigPhotoScreenState extends State<BigPhotoScreen>
           ),
 
           // More options button
-          IconButton(
-            onPressed: () {
-              // Add a dropdown menu to show set as wallpaper option
+          PopupMenuButton<String>(
+            elevation: 16,
+            onSelected: choiceAction,
+            itemBuilder: (BuildContext context) {
+              return [
+                // Set as wallpaper button
+                PopupMenuItem<String>(
+                  value: 'Set as wallpaper',
+                  child: Text('Set as wallpaper'),
+                ),
+              ];
             },
-            icon: const Icon(Icons.more_horiz_outlined),
           ),
         ],
       ),
@@ -273,5 +328,10 @@ class BigPhotoScreenState extends State<BigPhotoScreen>
         },
       ),
     );
+  }
+
+  void choiceAction(String menuItem){
+    if(kDebugMode) print('User selected : $menuItem');
+    // Handle the necessary actions
   }
 }
