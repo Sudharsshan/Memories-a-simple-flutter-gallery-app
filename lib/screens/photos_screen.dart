@@ -31,7 +31,7 @@ class _PhotosScreenState extends State<PhotosScreen> {
   final CacheManager _cacheManager = CacheManager(
     Config(
       'customCacheKey',
-      maxNrOfCacheObjects: 400,
+      maxNrOfCacheObjects: 800,
       stalePeriod: const Duration(days: 15),
     ),
   );

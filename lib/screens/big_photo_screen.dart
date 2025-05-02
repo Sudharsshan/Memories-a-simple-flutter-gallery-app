@@ -323,8 +323,7 @@ class BigPhotoScreenState extends State<BigPhotoScreen>
               break;
             case 2:
               // delete this pic
-              if (kDebugMode)
-                print('User requests to delete file: ${widget.assetEntity.id}');
+              if (kDebugMode) print('User requests to delete file: ${widget.assetEntity.id}');
               deleteFile(widget.assetEntity);
               break;
             case 3:

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_displaymode/flutter_displaymode.dart';
 import 'package:memories/models/show_toast.dart';
 import 'package:memories/screens/photos_screen.dart';
 import 'package:memories/screens/folders_screen.dart';
@@ -36,6 +37,9 @@ class Memories extends State<MyApp> {
   void initState() {
     super.initState();
 
+    // Set UI to higher FPS if possible
+    setOptimalDisplayMode;
+    
     // Request permission to access media
     requestPermission();
   }
@@ -81,6 +85,25 @@ class Memories extends State<MyApp> {
         } 
       }
     }
+  }
+
+  Future<void> setOptimalDisplayMode() async {
+    final List<DisplayMode> supported = await FlutterDisplayMode.supported;
+    final DisplayMode active = await FlutterDisplayMode.active;
+
+    final List<DisplayMode> sameResolution = supported.where(
+            (DisplayMode m) => m.width == active.width
+                && m.height == active.height).toList()..sort(
+            (DisplayMode a, DisplayMode b) =>
+                b.refreshRate.compareTo(a.refreshRate));
+
+    final DisplayMode mostOptimalMode = sameResolution.isNotEmpty
+        ? sameResolution.first
+        : active;
+
+    /// This setting is per session.
+    /// Please ensure this was placed with `initState` of your root widget.
+    await FlutterDisplayMode.setPreferredMode(mostOptimalMode);
   }
 
   void flutterToastmsg(String message){
